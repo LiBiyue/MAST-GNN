@@ -1,4 +1,4 @@
-# MAST-GCN
+# MAST-GNN
 
 The project is a Pytorch implementation of MAST-GCN proposed in the paper “XXXX”.
 
