@@ -1,6 +1,6 @@
 # MAST-GNN
 
-The project is a Pytorch implementation of MAST-GNN proposed in the paper “XXXX”.
+The project is a Pytorch implementation of MAST-GNN proposed in the paper “MAST-GNN: A Multimodal Adaptive Spatio-Temporal Graph Neural Network for Airspace Complexity Prediction”.
 
 The paper can be visited at XXXXXX
 
@@ -20,7 +20,7 @@ The paper can be visited at XXXXXX
 
 ## Data preprocessing
 
-We implement and execute MAST-GNN on real world sector datasets. In our sector data, each sector contains 43 features and a label, of which 17 features are used. There are 126 sectors in total, and the data of each sector is saved in a csv file.
+We implement and execute MAST-GNN on real world sector datasets. In our sector data, each sector contains 28 features and a label. There are 126 sectors in total, and the data of each sector is saved in a csv file.
 
 the following files should be prepared:
 
