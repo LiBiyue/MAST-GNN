@@ -25,6 +25,8 @@ class AirspaceModel(nn.Module):
                  adaptive_mat_size=10,
                  handle_minor_features=False,
                  use_adaptive_mat_only=False,
+                 geo_adj=None,
+                 flow_adj=None,
                  device="cuda:0"):
         super(AirspaceModel, self).__init__()
         self.blocks = blocks
@@ -46,6 +48,18 @@ class AirspaceModel(nn.Module):
         # tmpadj = torch.mm(self.nodevec1, self.nodevec2)
         # adaadjnumpy = tmpadj.cpu().detach().numpy()
         # np.save("adaadjnumpy.npy", adaadjnumpy)
+        geo_adj=(geo_adj-np.min(geo_adj))/(np.max(geo_adj)-np.min(geo_adj))
+        flow_adj = (flow_adj - np.min(flow_adj)) / (np.max(flow_adj) - np.min(flow_adj))
+        self.geo_adj = torch.tensor(geo_adj).to(self.device)
+        self.flow_adj = torch.tensor(flow_adj).to(self.device)
+        self.geo_adjweight = nn.Parameter(torch.randn((126, 1)).to(self.device), requires_grad=True)
+        self.flow_adjweight = nn.Parameter(torch.randn((126, 1)).to(self.device), requires_grad=True)
+        self.theta = nn.Parameter(torch.randn((126, 126)).to(self.device), requires_grad=True)
+
+        # self.nn.AdaptiveAvgPool2d((17,17))
+        # self.madapt=m(self.madapt.unsqueeze(dim=0)).squeeze()#17*17
+        # self.softmaxforadapt=nn.Softmax(dim=1)
+
         self.supports_len = self.supports_len if not use_adaptive_mat_only else 1
 
         if self.handle_minor_features:
@@ -85,6 +99,7 @@ class AirspaceModel(nn.Module):
 
     def forward(self, x):
         # Input shape is (batch_size, seq_len, n_vertex, features)
+        batch_size, seq_len, n_vertex, features = x.shape
         x = x.transpose(1, 3)
         seq_len = x.size(3)
         if seq_len < self.receptive_field:
@@ -95,12 +110,24 @@ class AirspaceModel(nn.Module):
         else:
             x = self.start_conv(x)
         skip = 0
-
+        # for node in range(n_vertex):
+        #     for t in range(seq_len):
+        #         for i in range():
+        #             return
+        eg = torch.sigmoid(torch.mm(self.geo_adj, self.geo_adjweight))
+        ef = torch.sigmoid(torch.mm(self.flow_adj, self.flow_adjweight))
+        alphagf = torch.trace(torch.mm(torch.mm(eg.t(), self.theta), ef))
+        alphagg = torch.trace(torch.mm(torch.mm(eg.t(), self.theta), eg))
+        alphafg = torch.trace(torch.mm(torch.mm(ef.t(), self.theta), eg))
+        alphaff = torch.trace(torch.mm(torch.mm(ef.t(), self.theta), ef))
+        eadapt = alphagg / (alphafg + alphagg) * eg + alphaff / (alphagf + alphaff) * ef
+        madapt = torch.mm(eadapt, eadapt.t())  # 126*126
+        adp = nn.functional.softmax(madapt, dim=1)
         if self.use_adaptive_mat_only:
-            adp = F.softmax(F.relu(torch.mm(self.nodevec1, self.nodevec2)), dim=1)
+            # adp = F.softmax(F.relu(torch.mm(self.nodevec1, self.nodevec2)), dim=1)
             adj_mats = [adp]
         elif self.adaptive_mat_init is not None:
-            adp = F.softmax(F.relu(torch.mm(self.nodevec1, self.nodevec2)), dim=1)
+            # adp = F.softmax(F.relu(torch.mm(self.nodevec1, self.nodevec2)), dim=1)
             # adaadjnumpy = adp.cpu().detach().numpy()
             # np.save("adaadjnumpy.npy", adaadjnumpy)
             # originadjnumpy = self.supports[0].cpu().detach().numpy()
@@ -141,7 +168,10 @@ if __name__ == '__main__':
     seqlen = 120
     nums = torch.ones((126, 126))
     temp = torch.randn((1, seqlen, 126, 17))
-    linearx = AirspaceModel(layers=5, blocks=4, out_channels=seqlen, supports=[nums])
+    geo_adj = np.random.randn(126, 126).astype(np.float32)
+    flow_adj = np.random.randn(126, 126).astype(np.float32)
+    linearx = AirspaceModel(layers=5, blocks=4, out_channels=seqlen, supports=[nums], geo_adj=geo_adj,
+                            flow_adj=flow_adj)
 
     # layers=4,blocks=4 seqlen=60
     # layers=5,blocks=4 seqlen=125
@@ -150,3 +180,11 @@ if __name__ == '__main__':
     print("input", temp.size(), linearx.receptive_field)
     out = linearx(temp)
     print(out.size())
+    # k=torch.ones((126, 126)).unsqueeze(dim=0)
+    # m = nn.AdaptiveAvgPool2d((7,7))
+    # a,b=m(k).squeeze().shape
+    # print(a,b)
+    # k=torch.ones((1, 120, 126, 17))
+    # for i in range(126):
+    #     tmp=k[:,:,i,:]
+    #     print(torch.flatten(tmp).size())

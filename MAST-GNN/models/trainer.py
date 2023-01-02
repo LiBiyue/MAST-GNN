@@ -81,7 +81,7 @@ class Trainer:
         best_loss, not_improved_count = float('inf'), 0
 
         start_time = time.time()
-        for epoch in range(0, self.args.epochs + 1):
+        for epoch in range(1, self.args.epochs + 1):
             train_epoch_loss = self.train_epoch(epoch)
             val_epoch_loss = self.val_epoch(epoch)
             train_loss_list.append(train_epoch_loss)
